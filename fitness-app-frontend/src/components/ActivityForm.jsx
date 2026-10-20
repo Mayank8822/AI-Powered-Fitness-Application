@@ -1,66 +1,105 @@
-import { Box, Button, FormControl, InputLabel, MenuItem, Select, TextField } from '@mui/material'
-import React, { useState } from 'react'
-import { addActivity } from '../services/api'
-
+import React, { useState } from 'react';
+import {
+  Box,
+  Button,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
+  TextField,
+  Typography,
+  Card,
+  CardContent,
+  CircularProgress,
+} from '@mui/material';
+import AddRoundedIcon from '@mui/icons-material/AddRounded';
+import { addActivity } from '../services/api';
+import { ACTIVITY_CONFIGS, estimateCalories } from '../utils/activityUtils';
 
 const ActivityForm = ({ onActivityAdded }) => {
+  const [activity, setActivity] = useState({
+    type: 'RUNNING',
+    duration: '',
+    caloriesBurned: '',
+    additionalMetrics: {},
+  });
+  const [loading, setLoading] = useState(false);
 
-    const [activity, setActivity] = useState({
-        type: "RUNNING", duration: '', caloriesBurned: '',
-        additionalMetrics: {}
-    });
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!activity.duration) return;
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        try {
-            await addActivity(activity);
-            onActivityAdded();
-            setActivity({ type: "RUNNING", duration: '', caloriesBurned: '', additionalMetrics: {}});
-        } catch (error) {
-            console.error(error);
-        }
+    setLoading(true);
+    try {
+      const payload = {
+        type: activity.type,
+        duration: Number(activity.duration),
+        caloriesBurned: activity.caloriesBurned
+          ? Number(activity.caloriesBurned)
+          : estimateCalories(activity.type, activity.duration),
+        additionalMetrics: activity.additionalMetrics || {},
+      };
+      await addActivity(payload);
+      if (onActivityAdded) onActivityAdded();
+      setActivity({ type: 'RUNNING', duration: '', caloriesBurned: '', additionalMetrics: {} });
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
     }
-    
+  };
+
   return (
-    <Box component="form" onSubmit={handleSubmit} sx={{ mb: 4 }}>
-    <FormControl fullWidth sx={{mb: 2}}>
-        <InputLabel>Activity Type</InputLabel>
-        <Select
-            value={activity.type}
-            onChange={(e) => setActivity({...activity, type: e.target.value})}>
-                <MenuItem value="RUNNING">Running</MenuItem>
-                <MenuItem value="WALKING">Walking</MenuItem>
-                <MenuItem value="CYCLING">Cycling</MenuItem>
-                <MenuItem value="SWIMMING">Swimming</MenuItem>
-                <MenuItem value="DANCING">Dancing</MenuItem>
-                <MenuItem value="BADMINTON">Badminton</MenuItem>
-                <MenuItem value="WEIGHT_TRAINING">Weight Training</MenuItem>
-                <MenuItem value="YOGA">Yoga</MenuItem>
-                <MenuItem value="HIIT">HIIT</MenuItem>
-                <MenuItem value="CARDIO">Cardio</MenuItem>
-                <MenuItem value="STRETCHING">Stretching</MenuItem>
-                <MenuItem value="OTHER">Other</MenuItem>
+    <Card sx={{ mb: 4, p: 2 }}>
+      <CardContent>
+        <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+          Log Activity
+        </Typography>
+        <Box component="form" onSubmit={handleSubmit}>
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel>Activity Type</InputLabel>
+            <Select
+              value={activity.type}
+              label="Activity Type"
+              onChange={(e) => setActivity({ ...activity, type: e.target.value })}
+            >
+              {Object.entries(ACTIVITY_CONFIGS).map(([key, config]) => (
+                <MenuItem key={key} value={key}>
+                  {config.label}
+                </MenuItem>
+              ))}
             </Select>
-    </FormControl>
-    <TextField fullWidth
-                label="Duration (Minutes)"
-                type='number'
-                sx={{ mb: 2}}
-                value={activity.duration}
-                onChange={(e) => setActivity({...activity, duration: e.target.value})}/>
+          </FormControl>
+          <TextField
+            fullWidth
+            label="Duration (Minutes)"
+            type="number"
+            sx={{ mb: 2 }}
+            value={activity.duration}
+            onChange={(e) => setActivity({ ...activity, duration: e.target.value })}
+            required
+          />
+          <TextField
+            fullWidth
+            label="Calories Burned"
+            type="number"
+            sx={{ mb: 2 }}
+            value={activity.caloriesBurned}
+            onChange={(e) => setActivity({ ...activity, caloriesBurned: e.target.value })}
+          />
+          <Button
+            type="submit"
+            variant="contained"
+            color="primary"
+            disabled={loading}
+            startIcon={loading ? <CircularProgress size={18} color="inherit" /> : <AddRoundedIcon />}
+          >
+            {loading ? 'Adding...' : 'Add Activity'}
+          </Button>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+};
 
-<TextField fullWidth
-                label="Calories Burned"
-                type='number'
-                sx={{ mb: 2}}
-                value={activity.caloriesBurned}
-                onChange={(e) => setActivity({...activity, caloriesBurned: e.target.value})}/>
-
-<Button type='submit' variant='contained'>
-    Add Activity
-</Button>
-  </Box>
-  )
-}
-
-export default ActivityForm
+export default ActivityForm;
